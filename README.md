@@ -1,380 +1,370 @@
+
 # CarPrice-Predictor
 
-    Here , i am gonna build a linear model using a raw uncleaned real world data to predict the price of the used car
-    NOTE : Q: why this is different then other's thousands of car price prediction proeject ?
-
-    Ans : Here i am gonna , check for :
-
-    a) Heteroscedasticity
-
-    b) test linear regression against regularized versions (Ridge/Lasso/ElasticNet)
-
-    c) I am going to explain why regularization helped me or didn't in this project.
-
-    d) Probably, i am gonna try to engineered such feature that could measureably improved the model .
-
-# Features - I need and i don't need
-
-### 🛑 The Absolute Unwanted (Drop Immediately)
-
-* **`VIN` (Vehicle Identification Number)**
-  * **Why:** This is a completely unique identifier for every single car (like a fingerprint or social security number). It has high cardinality (nearly every row will have a unique value), meaning a machine learning model can't learn any general trends from it. It's 100% noise for price prediction.
-
-### ⚠️ The Redundant / Noise Columns (Highly Recommended to Drop)
-
-* **`region` and `state`**
-  * **Why:** While geographic location *can* slightly affect car prices (e.g., 4WDs sell better in snowy states), having both is highly redundant. `region` usually contains hundreds of specific local areas, which creates too many categories (high cardinality) and overcomplicates your model.
-  * **Recommendation:** Drop `region` entirely. If you want to keep geographical context, keep only `state`, or drop both if you want a generalized country-wide model.
-
-### 🔍 The "Proceed with Caution" Columns (Keep, but clean up)
-
-* **`model`**
-  * **Why it's tricky:** Car models (e.g., "Camry", "Mustang", "F-150") are *incredibly* important for price. However, this column usually contains thousands of messy, misspelled, or overly specific text entries (e.g., "Civic EX-L", "Civic LX").
-  * **Recommendation:** Don't drop it immediately, but it will require heavy text cleaning or target encoding. If it's too messy and your model is overfitting, you might rely purely on `manufacturer` and `type`.
-* **`paint_color`**
-  * **Why it's borderline:** Unless a car is a wildly unpopular color, a white Camry and a silver Camry generally cost the same. It has very low predictive power and mostly adds unnecessary complexity.
-  * **Recommendation:** Safe to drop if you want a leaner model, or group rare colors into an "Other" category.
-
-### The Gold Standard (Definitely Keep)
-
-For context, these are your heavy hitters that you **must** keep for an accurate price prediction:
-
-* **`year` and `odometer`:** The ultimate indicators of age and wear.
-* **`manufacturer`, `cylinders`, `fuel`, `transmission`, `type`:** These define the core mechanics and class of the vehicle.
-* **`condition` and `title_status`:** Critical for identifying depreciated assets (like a "salvage" title or a car listed in "fair" condition).
-
-## About Feature [title_status]
-
-The **title status** tells the legal/history condition of the vehicle.
-
-Here’s what each means:
+> Predicting used car prices from raw, uncleaned, real-world Craigslist listings using classical ML regression techniques.
 
 ---
 
-# 1. `clean`
+## What Makes This Different?
 
-A normal vehicle title.
+Most used car price prediction projects on the internet use pre-cleaned datasets and run a single model. This project is different. Here, the raw uncleaned Craigslist dataset is used and the following are explicitly addressed:
 
-Meaning:
-
-* No major legal or insurance issues recorded.
-* Car was not declared total loss.
-
-This is usually the most desirable condition.
+* Checking for **Heteroscedasticity**
+* Testing **Linear Regression against regularized versions** (Ridge / Lasso / ElasticNet)
+* Explaining **why regularization helped or didn't** in this specific project
+* Engineering features that **measurably improved the model**
 
 ---
 
-# 2. `rebuilt`
+## Feature Selection Strategy
 
-The car was previously damaged badly and declared a total loss (`salvage`), but later repaired and inspected for road use.
+### Dropped Immediately — Zero Value Features
 
-Meaning:
-
-* Car had serious damage before.
-* Someone repaired it.
-* Now legally drivable again.
-
-Usually cheaper than clean-title cars.
-
----
-
-# 3. `lien`
-
-There is still a loan/legal financial claim on the car.
-
-Meaning:
-
-* Owner may still owe money to a bank/lender.
-* Transfer/sale can have legal complications.
+| Feature                              | Reason                                                                                                                |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `VIN`                              | Unique identifier per car (like a fingerprint). High cardinality — model can't learn any general trends. 100% noise. |
+| `url`,`region_url`,`image_url` | Non-informative links                                                                                                 |
+| `lat`,`long`                     | Redundant with region/state                                                                                           |
+| `posting_date`                     | Not relevant to price                                                                                                 |
+| `description`                      | Unstructured free text — requires NLP, out of scope                                                                  |
+| `county`                           | Too granular, mostly empty                                                                                            |
+| `paint_color`                      | Very low predictive power. Unless wildly unpopular color, a white Camry and silver Camry cost the same                |
 
 ---
 
-# 4. `salvage`
+### Redundant / Noisy — Recommended Drop
 
-The vehicle was heavily damaged and declared a total loss by insurance.
+**`region` and `state`**
 
-Possible causes:
-
-* accident,
-* flood,
-* fire,
-* severe damage.
-
-Usually:
-
-* unsafe or expensive to repair,
-* very low resale value.
-
-Important feature for price prediction.
+While geographic location can slightly affect car prices (e.g., 4WDs selling better in snowy states), having both is highly redundant. `region` contains hundreds of specific local areas causing high cardinality and overcomplicating the model. `state` was also dropped since shortform state names aren't interpretable as-is for this model.
 
 ---
 
-# 5. `missing`
+### Proceed with Caution — Keep but Clean
 
-Title information is unavailable or unknown.
+**`model`**
 
-Could mean:
-
-* missing data,
-* undocumented history.
-
-You may treat this carefully during preprocessing.
+Car models (e.g., "Camry", "Mustang", "F-150") are incredibly important for price. However, this column contains thousands of messy, misspelled, or overly-specific text entries (e.g., "Civic EX-L", "Civic LX"). Requires heavy text cleaning and target encoding. If too messy and causing overfitting, fall back to `manufacturer` + `type`.
 
 ---
 
-# 6. `parts only`
+### Gold Standard — Must Keep
 
-Vehicle is not intended for road use anymore.
+These are the heavy hitters that directly drive used car price:
 
-Meaning:
+| Feature               | Why It Matters                                               |
+| --------------------- | ------------------------------------------------------------ |
+| `year`/`odometer` | Ultimate indicators of age and wear                          |
+| `manufacturer`      | Brand directly affects resale value                          |
+| `cylinders`         | Defines engine power class                                   |
+| `fuel`              | Fuel type affects running costs and demand                   |
+| `transmission`      | Automatic vs manual has market preference                    |
+| `type`              | Sedan vs SUV vs truck affects price class                    |
+| `condition`         | Directly signals depreciation level                          |
+| `title_status`      | Critical — salvage/rebuilt titles lower price significantly |
 
-* sold only for spare parts,
-* usually non-functional or irreparable.
+---
 
-These cars often have extremely low prices.
+## Understanding `title_status` Values
 
-# **TEXT PREPROCESSING :**
+The title status tells the legal and history condition of the vehicle. Here's what each value means:
 
-### Step 1: Clean the Strings (Standardization)
+| Status         | Meaning                                                                                                                 | Price Impact                         |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `clean`      | Normal title. No major legal or insurance issues. Car was never declared total loss.                                    | Highest resale value                 |
+| `rebuilt`    | Was previously damaged (salvage), repaired, and passed inspection. Now legally drivable.                                | Cheaper than clean                   |
+| `lien`       | Active loan/financial claim on the car. Owner still owes money to a bank/lender. Transfer can have legal complications. | Moderate impact                      |
+| `salvage`    | Heavily damaged, declared total loss by insurance (accident, flood, fire). Usually unsafe or expensive to repair.       | Very low resale value                |
+| `missing`    | Title information unavailable or unknown. Could mean undocumented history.                                              | Treat carefully during preprocessing |
+| `parts only` | Not intended for road use. Sold only for spare parts — usually non-functional or irreparable.                          | Extremely low prices                 |
 
-Before encoding, reduce the sheer number of unique values by cleaning up the typos and variations. If `F-150`, `f150`, and `f-150 ` are treated as different things, cleaning them solves half your problem.
+> **Decision made:** `title_status` was dropped after EDA revealed `clean` dominates at **96.6%** of all rows — near-zero variance, contributing only noise to the model.
 
-### Step 2: Group the "Rare" Models (Frequency Thresholding)
+---
 
-Look at your output: thousands of models only appear **1 time** (like `gand wagoneer`). A machine learning model cannot learn a price pattern from a car it only sees once.
+## Text Preprocessing — `model` Column
 
-Group all models that appear less than a certain threshold (e.g., less than 10 or 20 times) into a catch-all category called `'other'`. This will instantly plummet your unique count from 12,000+ to a few hundred.
+### Step 1 — String Standardization
 
-## Target Encoding
-
-#### 1) df['model'] :
-
-To understand why Target Encoding is best, look at why the alternatives fall short for this specific column:
-
-#### 1. One-Hot Encoding (Bad Choice)
-
-* **What it does:** Creates a separate column for every single unique car model (1 or 0).
-* **Why it fails here:** Even after cleaning, you likely have hundreds of unique car models left. Creating 500+ new columns creates a massive, sparse matrix that consumes excessive memory, slows down training, and triggers the "curse of dimensionality," severely harming model performance.
-
-#### 2. Label Encoding / Ordinal Encoding (Bad Choice)
-
-* **What it does:** Assigns a random arbitrary integer to each model (e.g., `camry = 1`, `f150 = 2`, `accord = 3`).
-* **Why it fails here:** Algorithms naturally assume that numbers have a sequence or order (i.e., **3**>**2**>**1**). Label encoding forces your model to assume that an Accord is mathematically "greater than" a Camry and twice as large as a F-150, which makes no sense and misleads the machine learning algorithm.
-
-### ⚠️ One Critical Rule: Prevent Target Leakage!
-
-Because Target Encoding uses the `price` (the dependent variable) to calculate the encoded values, you must compute the encoding **only on your Training Split** and then map those calculated values onto your Test Split.
-
-If you encode the entire dataset before splitting, your model will subtly "cheat" by looking at the test set prices during training, leading to overly optimistic training scores but terrible performance on real-world data. The `category_encoders` library handles this smoothly when you use `.fit_transform()` on training data and `.transform()` on testing data.
-
-### 2) df['Manucfacturer']
-
-##### Extract only the numbers from the text (e.g., "6 cylinders" -> 6)
-
-    code: 	df['cylinders'] = df['cylinders'].str.extract(r'(\d+)').astype(float)
-
-Explanation  :
-
-a) r = this represent raw strings
-
-b) \d = represents any digit from 0 to 9
-
-c) +  = represent one or more . For eg : if given 10 or 12 cylinders then it will extract both 10 and 12 not just beginning one only
-
-d)astype(float) :
-
-Even though the text `"6 cylinders"` has been cut down to `"6"`, Python still thinks it is a text string (like a word), not a number. You cannot calculate averages or correlations with text.
-
-* `.astype(float)` converts that text string `"6"` into an actual decimal number: `6.0`.
-
-## **Important note : [during OneHotEncoding]**
-
-💡 Why `index=X_train.index` is critical
-
-When Scikit-Learn outputs `fit_transform()`, it completely strips away your Pandas index and returns a raw, unindexed NumPy array starting back at row `0`. If your `X_train` rows have been shuffled or split, missing the `index=X_train.index` step will cause the rows to misalign when you run `pd.concat()`, filling your dataset with broken `NaN` values!
-
-## **NOTE : Implementation of Column transformer to reduce code**
-
-💡 Why this is much better
-
-1. **Massive Code Reduction:** Your manual code requires about 10 lines of matrix manipulation per column. If you added `'type'` and `'transmission'` manually, you would have written nearly 30 lines of error-prone code. The `ColumnTransformer` handles all of them simultaneously.
-2. **`remainder='passthrough'` is the Secret Sauce:** Without this parameter, `ColumnTransformer` would drop any column you didn't explicitly encode. Adding `remainder='passthrough'` tells it to process the categorical columns and leave your numeric columns (like `year` or `odometer`) completely alone, gluing everything back together automatically.
-
-## **When to drop column or impute (missing % per column)**
-
-| Missing Percentage | Typical Action                      |
-| ------------------ | ----------------------------------- |
-| 0–5%              | Usually safe to impute              |
-| 5–20%             | Impute carefully after analysis     |
-| 20–40%            | Depends on feature importance       |
-| 40–60%            | Usually drop unless highly valuable |
-| >60–70%           | Mostly drop                         |
-| >85–90%           | Almost always drop                  |
-
-![1781850768148](image/README/1781850768148.png)
-
-* **`condition` and `cylinders` have the highest missing values**
-
-  These columns may require careful imputation or possible removal if they do not contribute much to model performance.
-* **Columns like `price`, `year`, `model`, and `state` are almost fully complete**
-
-  This is good because these are likely important core features for used car price prediction.
-* **Missing values are not uniformly distributed across rows**
-
-  This suggests the missingness may not be completely random, meaning certain types of car listings may systematically lack information.
-* **`type`, `title_status`, and `odometer` contain moderate missing values**
-
-  Since these are business-important features, they are probably worth imputing instead of dropping.
-* **Some rows contain multiple missing columns simultaneously**
-
-  This may indicate lower-quality listings or incomplete seller entries, which could potentially affect model reliability.
-
-## **My View :**
-
-#NOTE: here we see , columns like ['conditions', 'cylinders'] contains too many almost 60%
-
-missing values but i am not gonna drop those sine they contribute a lot to my model that i
-
-am going to train.
-
-and columns like ['manufacturer','type','title_status', 'fuel'] etc. contains less missing
-
-values that we will look later. For now, (global)- data cleaning it is preety fine.
-
-# **Changes need to be done over 'price', 'year' and 'odometer'**
-
-**The rule to remember for every future project:**
-
-Log transform is for columns where values span multiple orders of magnitude (100 to 100,000). `price` and `odometer` qualify. `year` spans 1990–2024 — that's not magnitude difference, that's a timeline. Always engineer timeline columns into age/duration instead.
-
-**`price` — Remove outliers first, THEN log transform**
-
-Don't log transform before removing outliers. A $1 listing or $999,999 listing will still be a $1 and $999,999 after log transform — just slightly smaller numbers, still destroying your regression. Order matters:
+Before encoding, clean typos and variations to reduce unique values. If `F-150`, `f150`, and `f-150 ` are treated as different things, cleaning solves half the problem.
 
 ```python
-# Step 1: Remove junk listings first
-df = df[(df['price']>=500)&(df['price']<=150000)]
+df['model'] = df['model'].astype(str).str.lower().str.strip()
+df['model'] = df['model'].str.replace(r'[^a-zA-Z0-9\s]', '', regex=True).str.strip()
+df['model'] = df['model'].replace('', np.nan).fillna('other')
+```
 
-# Step 2: THEN log transform
-import numpy as np
-df['log_price']= np.log1p(df['price'])
+### Step 2 — Rare Category Grouping (Frequency Thresholding)
 
-# Use log_price as your target (y), not price
+Thousands of models appear only once (e.g., `grand wagoneer`). A model cannot learn a price pattern from a car it only sees once. Group all models appearing fewer than 10 times into a catch-all `'other'` category — this drops unique count from 12,000+ to a few hundred.
+
+```python
+model_counts = X_train['model'].value_counts()
+rare_models  = model_counts[model_counts < 10].index
+X_train.loc[X_train['model'].isin(rare_models), 'model'] = 'other'
+X_test.loc[X_test['model'].isin(rare_models), 'model']   = 'other'
 ```
 
 ---
 
-**`odometer` — Cap outliers, THEN log transform**
+## Encoding Strategy
 
-Same logic — remove the 0-mile and 500,000-mile nonsense entries first, then transform. Don't remove, just cap (a 250k mile car is real, a 999,999 mile car is a typo):
+### Target Encoding — `model` and `manufacturer`
+
+For high-cardinality categorical columns, **Target Encoding** was chosen over the alternatives:
+
+| Method                             | Why It Fails Here                                                                                               |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **One-Hot Encoding**         | Creates 500+ new columns → massive sparse matrix → curse of dimensionality → harms model performance         |
+| **Label / Ordinal Encoding** | Assigns arbitrary integers (camry=1, f150=2) → model wrongly assumes numerical order → misleads the algorithm |
+| **Target Encoding**          | Replaces each category with the mean target (price) for that category → compact, meaningful, order-free        |
+
+#### Critical Rule — Prevent Target Leakage
+
+Because Target Encoding uses `price` to calculate encoded values, it must be computed **only on training data** and then mapped onto test data:
+
+```python
+from category_encoders import TargetEncoder
+
+TE_model        = TargetEncoder(cols=['model'])
+TE_manufacturer = TargetEncoder(cols=['manufacturer'])
+
+# Fit ONLY on X_train
+X_train['model_Encoded']        = TE_model.fit_transform(X_train['model'], y_train)
+X_train['manufacturer_Encoded'] = TE_manufacturer.fit_transform(X_train['manufacturer'], y_train)
+
+# Transform X_test using the already-fitted encoder
+X_test['model_Encoded']        = TE_model.transform(X_test['model'])
+X_test['manufacturer_Encoded'] = TE_manufacturer.transform(X_test['manufacturer'])
+```
+
+If encoded on the full dataset before splitting, the model subtly "cheats" by seeing test set prices during training — leading to overly optimistic training scores but poor real-world performance.
+
+---
+
+### Ordinal Encoding — `condition`
+
+`condition` is ordinal (values have a meaningful order), so it was encoded with an explicit order:
+
+```
+salvage → fair → good → excellent → like new → new
+   0         1      2        3           4        5
+```
+
+### One-Hot Encoding — `fuel`, `type`, `transmission`
+
+Nominal categories with no natural order. Applied using `ColumnTransformer` for efficiency:
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+
+CT = ColumnTransformer(
+    transformers=[
+        ('OHE_type',         OneHotEncoder(), ['type']),
+        ('OHE_transmission', OneHotEncoder(), ['transmission'])
+    ],
+    remainder='passthrough'   # keeps all other columns untouched
+)
+```
+
+> **Why `remainder='passthrough'` matters:** Without it, `ColumnTransformer` silently drops every column not explicitly listed. This single parameter tells it to process the specified columns and pass everything else through unchanged.
+
+> **Why `index=X_train.index` matters during manual OHE:** Scikit-Learn's `fit_transform()` strips the Pandas index and returns an unindexed NumPy array starting at row 0. If rows were shuffled during splitting, missing `index=X_train.index` causes row misalignment when concatenating — filling the dataset with broken `NaN` values.
+
+---
+
+## Cylinders — Extracting Numbers from Text
+
+```python
+# "6 cylinders" → 6.0
+df['cylinders'] = df['cylinders'].str.extract(r'(\d+)').astype(float)
+```
+
+| Regex Part         | Meaning                                                                |
+| ------------------ | ---------------------------------------------------------------------- |
+| `r`              | Raw string — backslashes treated literally                            |
+| `\d`             | Any digit from 0–9                                                    |
+| `+`              | One or more digits (captures`10`,`12`, not just single digits)     |
+| `.astype(float)` | Converts extracted string`"6"`to actual number`6.0`for computation |
+
+---
+
+## Feature Transformations — `price`, `odometer`, `year`
+
+> **The rule:** Log transform is for columns where values span multiple orders of magnitude (100 to 100,000). `price` and `odometer` qualify. `year` spans 1990–2024 — that's a timeline, not magnitude. Engineer timeline columns into age/duration instead.
+
+### `price` — Remove Outliers First, Then Log Transform
+
+Applying log transform before removing outliers does nothing useful — a `$1` or `$999,999` listing is still an extreme value after log transform. Order matters:
+
+```python
+# Step 1: Remove junk listings
+df = df[(df['price'] >= 500) & (df['price'] <= 150000)]
+
+# Step 2: Log transform the target
+df['logged_price'] = np.log1p(df['price'])
+```
+
+| Before Log Transform                                                  | After Log Transform                                                   |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| ![1781934758242](https://claude.ai/chat/image/README/1781934758242.png) | ![1781934783261](https://claude.ai/chat/image/README/1781934783261.png) |
+
+---
+
+### `odometer` — Cap Extremes, Then Log Transform
+
+A 250k mile car is real. A 999,999 mile car is a data entry error. Cap, don't remove:
 
 ```python
 # Step 1: Cap extremes
-df = df[(df['odometer']>=1000)&(df['odometer']<=300000)]
+df = df[(df['odometer'] >= 1000) & (df['odometer'] <= 300000)]
 
-# Step 2: Log transform as a FEATURE (not target)
-df['log_odometer']= np.log1p(df['odometer'])
-
-# Drop original odometer column after this
+# Step 2: Log transform as a feature
+df['logged_odometer'] = np.log1p(df['odometer'])
 df.drop(columns=['odometer'], inplace=True)
 ```
 
 ---
 
-**`year` — Do NOT log transform. Engineer it instead.**
+### `year` — Engineer into `car_age` Instead
 
-`year` is not skewed in a way that log transformation fixes — it's a calendar number, not a magnitude. Log transforming `year` makes zero mathematical sense (log(2015) means nothing). What you actually want is the  **age of the car** , which has a direct, interpretable relationship with price:
+Log transforming `year` makes no mathematical sense — `log(2015)` is meaningless. `car_age` has a direct, interpretable relationship with price:
 
 ```python
-# Convert year to car_age — this is linearly related to price
-df['car_age']=2024- df['year']
-
-# Remove impossible values (cars from the future or ancient history)
-df = df[(df['car_age']>=0)&(df['car_age']<=30)]
-
-# Drop original year column
+df['car_age'] = 2026 - df['year']
+df = df[(df['car_age'] >= 0) & (df['car_age'] <= 30)]
 df.drop(columns=['year'], inplace=True)
 ```
 
-NOTE: this is before applying log transformation
+#### Logged Price vs Car Age — Outlier Check
 
-![1781934758242](image/README/1781934758242.png)
+![1781935862124](https://claude.ai/chat/image/README/1781935862124.png)
 
-this is after applying log transformation
+The overall trend is clear — as `car_age` increases, `logged_price` decreases. This is exactly the relationship the model needs to learn. The log transform worked correctly. The scattered circles are **real listings** (low-mileage collectibles, luxury brands, flood-damaged cars) — not errors to be removed.
 
-![1781934783261](image/README/1781934783261.png)
+---
 
-##### **Price and car_age - presence of outliers**
+## Missing Value Analysis
 
-![1781935862124](image/README/1781935862124.png)
+![1781850768148](https://claude.ai/chat/image/README/1781850768148.png)
 
-The overall trend is perfect — as `car_age` increases, `logged_price` decreases. That's exactly the relationship your model needs to learn. Your log transform worked correctly.
+### Decision Table — Drop or Impute?
 
-### **Categorical Column Distribution : checking balances of rows**
+| Missing % | Action                              |
+| --------- | ----------------------------------- |
+| 0–5%     | Usually safe to impute              |
+| 5–20%    | Impute carefully after analysis     |
+| 20–40%   | Depends on feature importance       |
+| 40–60%   | Usually drop unless highly valuable |
+| 60–70%   | Mostly drop                         |
+| > 85–90% | Almost always drop                  |
 
-In data science, if a single category fills up 90% or 95% of an entire column, that column has almost zero variance. For your Linear Regression model, a column like that is practically useless because it doesn't offer enough variety to help predict the `price`.
+### Key Observations
 
-We got this barcharts of each categorical feature's top 20 category and with conclusion : dominating or balanced
+* **`condition` and `cylinders`** have ~60% missing values. Not dropped because they contribute significantly to price prediction. Imputed after confirming feature importance.
+* **`price`, `year`, `model`, `state`** are almost fully complete — these are the core features.
+* **Missing values are not uniformly distributed across rows** — certain listing types systematically lack information, suggesting missingness is not completely random.
+* **`type`, `title_status`, `odometer`** have moderate missing values — imputed since they are business-important features.
+* **Some rows have multiple missing columns simultaneously** — likely lower-quality or incomplete seller entries.
 
-![1782110991188](image/README/1782110991188.png)
+### Handling `manufacturer`, `fuel`, `transmission` (< 5% missing)
 
-## manufacturer: top category = 17.0%  ✓ balanced enough
+The shape of the distribution for these columns remained identical after Complete Case Analysis (CCA) — confirming the missing data is  **completely at random (MCAR)** . Therefore CCA (dropping those rows directly) was performed instead of imputation:
 
-![1782111006354](image/README/1782111006354.png)
+![1782381850616](https://claude.ai/chat/image/README/1782381850616.png)
 
-## model: top category = 1.9%  ✓ balanced enough
+```python
+df = df.dropna(subset=['manufacturer', 'fuel', 'transmission'])
+```
 
-![1782111016226](image/README/1782111016226.png)
+---
 
-## condition: top category = 50.3%  ✓ balanced enough
+## Categorical Column Distributions
 
-![1782111026239](image/README/1782111026239.png)
+Checked for dominant categories across all categorical features. A column where a single category fills 90%+ has near-zero variance and is practically useless for regression.
 
-## cylinders: top category = 39.1%  ✓ balanced enough
+### Dominance Check Code
 
-![1782111035421](image/README/1782111035421.png)
-
-## fuel: top category = 84.1%  ✓ balanced enough
-
-![1782111046940](image/README/1782111046940.png)
-
-## title_status: top category = 96.6%  Dominating
-
-![1782111056235](image/README/1782111056235.png)
-
-## transmission: top category = 78.7%  ✓ balanced enough
-
-![1782111066900](image/README/1782111066900.png)
-
-## type: top category = 26.4%  ✓ balanced enough
-
-# Code snippet i used to check dominance
-
+```python
 print("=== Dominance Check ===")
 for col in df.select_dtypes(include='object').columns:
     top_pct = df[col].value_counts(normalize=True).iloc[0] * 100
-    if top_pct >= 70:  # flag anything above 90% for review
-        print(f"  {col}: top category = {top_pct:.1f}%  ← check this")		#NOTE: top_pct = top percentage
+    if top_pct >= 90:
+        print(f"  {col}: top category = {top_pct:.1f}%  <- Dominating")
     else:
-        print(f"  {col}: top category = {top_pct:.1f}%  ✓ balanced enough")
-
-### **Function of iloc[0] = selecting the top proportion category from the list**
-
-```
-automatic    0.85
-manual       0.12
-other        0.03
-Name: transmission, dtype: float64
+        print(f"  {col}: top category = {top_pct:.1f}%  balanced enough")
 ```
 
-Now, look at how the rest of the code processes this output step-by-step:
+> **`iloc[0]` explained:** `value_counts(normalize=True)` returns proportions for every category as a sorted list. `.iloc[0]` isolates only the top row (most frequent category). Without it, the `if` statement would crash trying to compare an entire list against a single number.
 
-1. **Without `.iloc[0]`:** If you didn't use it, your code would try to multiply the *entire list* by 100 (`85.0%`, `12.0%`, `3.0%`). The `if` statement would crash because it can't compare a whole list of numbers against `90`.
-2. **With `.iloc[0]`:** It isolates that top row value (`0.85`).
-3. **The Multiplier (`* 100`):** It multiplies `0.85 * 100` to get `85.0`.
+### Results
 
-# **Handling missing values :**
+| Feature          | Top Category %  | Status                          |
+| ---------------- | --------------- | ------------------------------- |
+| `manufacturer` | 17.0%           | Balanced                        |
+| `model`        | 1.9%            | Balanced                        |
+| `condition`    | 50.3%           | Balanced                        |
+| `cylinders`    | 39.1%           | Balanced                        |
+| `fuel`         | 84.1%           | Balanced                        |
+| `title_status` | **96.6%** | **Dominating — Dropped** |
+| `transmission` | 78.7%           | Balanced                        |
+| `type`         | 26.4%           | Balanced                        |
 
-since , we found that the shape of the distribution of data of categorical columns which has less than 5% of data missing ['manufacturer', 'fuel', 'transmission'] has same shape even after peforming CCA[complete case analysis] so we can conclude that the missing data are completely at **Random . Therefore we , can directly perform CCA and no need to impute.**
+#### Distribution Charts
 
-![1782381850616](image/README/1782381850616.png)a
+**manufacturer** (17.0% — balanced)
+![1782110991188](https://claude.ai/chat/image/README/1782110991188.png)
+
+**model** (1.9% — balanced)
+![1782111006354](https://claude.ai/chat/image/README/1782111006354.png)
+
+**condition** (50.3% — balanced)
+![1782111026239](https://claude.ai/chat/image/README/1782111026239.png)
+
+**cylinders** (39.1% — balanced)
+![1782111035421](https://claude.ai/chat/image/README/1782111035421.png)
+
+**fuel** (84.1% — balanced)
+![1782111046940](https://claude.ai/chat/image/README/1782111046940.png)
+
+**title_status** (96.6% — Dominating, dropped)
+![1782111056235](https://claude.ai/chat/image/README/1782111056235.png)
+
+**transmission** (78.7% — balanced)
+![1782111066900](https://claude.ai/chat/image/README/1782111066900.png)
+
+**type** (26.4% — balanced)
+![1782111016226](https://claude.ai/chat/image/README/1782111016226.png)
+
+---
+
+## Pipeline Order (Industry Standard)
+
+```
+1. Basic Data Cleaning          → drop irrelevant cols, fix dtypes
+2. Safe Feature Engineering     → row-level transforms (car_age, log_price, log_odometer)
+3. Train-Test Split             ← THE WALL. Nothing that "learns" crosses this.
+4. Unsafe Feature Engineering   → rare model grouping (computed from X_train only)
+5. Imputation                   → fit on X_train, transform both
+6. Encoding                     → fit on X_train, transform both
+7. Scaling                      → fit on X_train, transform both
+8. Model Training
+```
+
+> **The golden rule:** If a transformation needs to compute any statistic from the dataset to work — it goes after the split, fitted on `X_train` only, applied to both `X_train` and `X_test`.
+
+---
+
+## Model Results
+
+| Model                   | R²              | MAE              | RMSE             |
+| ----------------------- | ---------------- | ---------------- | ---------------- |
+| Linear Regression       | 0.6786           | 0.3163           | 0.4969           |
+| Ridge                   | 0.6786           | 0.3163           | 0.4969           |
+| Lasso                   | 0.6785           | 0.3164           | 0.4970           |
+| **Random Forest** | **0.8562** | **0.1476** | **0.3324** |
+| Random Forest (CV)      | **0.8400** | —               | —               |
+
+> **Key finding:** Ridge and Lasso performed identically to plain Linear Regression because multicollinearity was already addressed during the VIF check — there was nothing left for regularization to fix. The large gap between linear models (R²=0.67) and Random Forest (R²=0.856) confirms that **used car pricing relationships are significantly nonlinear** — features interact with each other in ways a straight line cannot capture.
+>
