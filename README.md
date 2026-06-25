@@ -1,4 +1,3 @@
-
 # CarPrice-Predictor
 
 > Predicting used car prices from raw, uncleaned, real-world Craigslist listings using classical ML regression techniques.
@@ -206,9 +205,9 @@ df = df[(df['price'] >= 500) & (df['price'] <= 150000)]
 df['logged_price'] = np.log1p(df['price'])
 ```
 
-| Before Log Transform                                                  | After Log Transform                                                   |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| ![1781934758242](https://claude.ai/chat/image/README/1781934758242.png) | ![1781934783261](https://claude.ai/chat/image/README/1781934783261.png) |
+| Before Log Transform                           | After Log                                      |
+| ---------------------------------------------- | ---------------------------------------------- |
+| ![1781934758242](image/README/1781934758242.png) | ![1781934783261](image/README/1781934783261.png) |
 
 ---
 
@@ -239,7 +238,7 @@ df.drop(columns=['year'], inplace=True)
 
 #### Logged Price vs Car Age — Outlier Check
 
-![1781935862124](https://claude.ai/chat/image/README/1781935862124.png)
+![1781935862124](image/README/1781935862124.png)
 
 The overall trend is clear — as `car_age` increases, `logged_price` decreases. This is exactly the relationship the model needs to learn. The log transform worked correctly. The scattered circles are **real listings** (low-mileage collectibles, luxury brands, flood-damaged cars) — not errors to be removed.
 
@@ -247,7 +246,7 @@ The overall trend is clear — as `car_age` increases, `logged_price` decreases.
 
 ## Missing Value Analysis
 
-![1781850768148](https://claude.ai/chat/image/README/1781850768148.png)
+![1781850768148](/Users/bheshu/Desktop/PricePredictor/image/README/1781850768148.png)
 
 ### Decision Table — Drop or Impute?
 
@@ -272,7 +271,7 @@ The overall trend is clear — as `car_age` increases, `logged_price` decreases.
 
 The shape of the distribution for these columns remained identical after Complete Case Analysis (CCA) — confirming the missing data is  **completely at random (MCAR)** . Therefore CCA (dropping those rows directly) was performed instead of imputation:
 
-![1782381850616](https://claude.ai/chat/image/README/1782381850616.png)
+![1782381850616](image/README/1782381850616.png)
 
 ```python
 df = df.dropna(subset=['manufacturer', 'fuel', 'transmission'])
@@ -314,28 +313,28 @@ for col in df.select_dtypes(include='object').columns:
 #### Distribution Charts
 
 **manufacturer** (17.0% — balanced)
-![1782110991188](https://claude.ai/chat/image/README/1782110991188.png)
+![1782110991188](image/README/1782110991188.png)
 
 **model** (1.9% — balanced)
-![1782111006354](https://claude.ai/chat/image/README/1782111006354.png)
+![1782111006354](image/README/1782111006354.png)
 
 **condition** (50.3% — balanced)
-![1782111026239](https://claude.ai/chat/image/README/1782111026239.png)
+![1782111026239](image/README/1782111026239.png)
 
 **cylinders** (39.1% — balanced)
-![1782111035421](https://claude.ai/chat/image/README/1782111035421.png)
+![1782111035421](image/README/1782111035421.png)
 
 **fuel** (84.1% — balanced)
-![1782111046940](https://claude.ai/chat/image/README/1782111046940.png)
+![1782111046940](image/README/1782111046940.png)
 
 **title_status** (96.6% — Dominating, dropped)
-![1782111056235](https://claude.ai/chat/image/README/1782111056235.png)
+![1782111056235](image/README/1782111056235.png)
 
 **transmission** (78.7% — balanced)
-![1782111066900](https://claude.ai/chat/image/README/1782111066900.png)
+![1782111066900](image/README/1782111066900.png)
 
 **type** (26.4% — balanced)
-![1782111016226](https://claude.ai/chat/image/README/1782111016226.png)
+![1782111016226](image/README/1782111016226.png)
 
 ---
 
@@ -367,4 +366,3 @@ for col in df.select_dtypes(include='object').columns:
 | Random Forest (CV)      | **0.8400** | —               | —               |
 
 > **Key finding:** Ridge and Lasso performed identically to plain Linear Regression because multicollinearity was already addressed during the VIF check — there was nothing left for regularization to fix. The large gap between linear models (R²=0.67) and Random Forest (R²=0.856) confirms that **used car pricing relationships are significantly nonlinear** — features interact with each other in ways a straight line cannot capture.
->
